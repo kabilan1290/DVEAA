@@ -1,0 +1,3 @@
+Interns are not allowed to access patient records.
+Doctors have access to patient records.
+HR can view salaries.

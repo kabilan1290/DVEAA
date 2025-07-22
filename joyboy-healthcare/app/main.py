@@ -1,5 +1,7 @@
 import streamlit as st
 from llm_client import query_qwen
+import requests
+import streamlit.components.v1 as components
 
 
 # --- Static credentials ---
@@ -148,11 +150,60 @@ elif page == "Medical Ticket Triage":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "Internal Policy Assistant":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
+    st.markdown('', unsafe_allow_html=True)
     st.subheader("Internal Policy Assistant")
-    question = st.text_input("Ask your policy question")
-    if st.button("Ask"):
-        st.info("Querying policy assistant... (To be implemented)")
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        question = st.text_area("Ask a policy question:")
+    with col2:
+        if st.button("Ask"):
+            try:
+                policy = requests.get("http://localhost:8000/policy").json()["policy"]
+                prompt = f"""You are JoyBoy's internal assistant. Current policy is:
+\"\"\"{policy}\"\"\"
+Please answer the following user query in context: {question}
+"""
+                answer = query_qwen(prompt)
+                st.success("Policy Assistant Response:")
+                st.write(answer)
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+    st.markdown("---")
+    st.subheader("Update Policy (Only for IT admins)")
+
+    # Inject real HTML+JS via iframe
+    role = st.session_state.role
+    components.html(f"""
+        <textarea id="policyInput" rows="5" style="width: 100%;" placeholder="Enter new policy..."></textarea><br><br>
+        <button onclick="submitPolicy()" style="background-color: #0052cc; color: white; padding: 10px 20px; border-radius: 8px;">Submit Policy via Browser</button>
+        
+        <script>
+        function submitPolicy() {{
+            const newPolicy = document.getElementById("policyInput").value;
+            const role = "{role}";  // injected and can be tampered
+            fetch("http://localhost:8000/update_policy", {{
+                method: "POST",
+                headers: {{
+                    "Content-Type": "application/json"
+                }},
+                body: JSON.stringify({{
+                    new_policy: newPolicy,
+                    role: role
+                }})
+            }})
+            .then(response => response.json())
+            .then(data => {{
+                alert("Server says: " + data.message);
+            }})
+            .catch(error => {{
+                alert("Error: " + error);
+            }});
+        }}
+        </script>
+    """, height=300)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "Diagnostic Suggestion Tool":
