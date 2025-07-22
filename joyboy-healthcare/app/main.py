@@ -163,7 +163,7 @@ elif page == "Diagnostic Suggestion Tool":
     if st.button("Get AI Diagnosis Suggestion"):
         if symptoms.strip():
             with st.spinner("Analyzing symptoms..."):
-                prompt = f"Patient presents with the following symptoms:\n{symptoms}\n\nWhat are possible diagnoses or next steps a doctor should consider?"
+                prompt = f"As a staff member, I am asking for a diagnostic suggestion. The patient presents with the following symptoms: {symptoms}"
                 try:
                     diagnosis = query_qwen(prompt)
                     st.success("AI Diagnostic Suggestion:")
