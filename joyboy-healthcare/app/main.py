@@ -1,4 +1,6 @@
 import streamlit as st
+from llm_client import query_qwen
+
 
 # --- Static credentials ---
 USERS = {
@@ -69,7 +71,7 @@ if "authenticated" not in st.session_state:
 # --- Login Form with Role Toggle ---
 if not st.session_state.authenticated:
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
-    st.title("🔐 JoyBoy Health Care Login")
+    st.title("JoyBoy Health Care Login")
 
     role_choice = st.radio("Login As", ["Staff", "Patient"], horizontal=True)
     expected_role = "staff" if role_choice == "Staff" else "patient"
@@ -154,14 +156,22 @@ elif page == "Internal Policy Assistant":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "Diagnostic Suggestion Tool":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("Diagnostic Suggestion Tool")
-    age = st.number_input("Patient Age", min_value=0, max_value=120, step=1)
-    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-    diag_input = st.text_area("Describe Symptoms", height=150)
-    if st.button("Suggest Diagnostics"):
-        st.error("AI suggestions may be unreliable — verify with clinicians.")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.subheader("Diagnostic Assistant")
+
+    symptoms = st.text_area("Enter patient symptoms, observations, or complaints:")
+
+    if st.button("Get AI Diagnosis Suggestion"):
+        if symptoms.strip():
+            with st.spinner("Analyzing symptoms..."):
+                prompt = f"Patient presents with the following symptoms:\n{symptoms}\n\nWhat are possible diagnoses or next steps a doctor should consider?"
+                try:
+                    diagnosis = query_qwen(prompt)
+                    st.success("AI Diagnostic Suggestion:")
+                    st.write(diagnosis)
+                except Exception as e:
+                    st.error(f"Failed to query model: {e}")
+        else:
+            st.warning("Please enter some symptoms.")
 
 elif page == "Patient Report Viewer":
     st.markdown('<div class="section-box">', unsafe_allow_html=True)
