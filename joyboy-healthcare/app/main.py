@@ -7,7 +7,19 @@ import streamlit.components.v1 as components
 # --- Static credentials ---
 USERS = {
     "admin": {"password": "admin", "role": "staff"},
-    "kishore": {"password": "kishore", "role": "patient"}
+    "kishore": {"password": "kishore", "role": "patient", "patient_id": "bc7546519a0f02925ae3de821f702c89"},
+    "rajesh": {"password": "rajesh", "role": "patient", "patient_id": "99bd974fae48638b5d62ca32f7645637"}  # NEW
+}
+
+PATIENT_REPORTS = {
+    "bc7546519a0f02925ae3de821f702c89": {
+        "name": "Kishore",
+        "report": "Diagnosis: Migraine\nPrescribed: Ibuprofen"
+    },
+    "99bd974fae48638b5d62ca32f7645637": {
+        "name": "Rajesh",
+        "report": "Diagnosis: High BP\nPrescribed: Amlodipine"
+    }
 }
 
 # --- Streamlit config ---
@@ -89,6 +101,7 @@ if not st.session_state.authenticated:
             st.session_state.authenticated = True
             st.session_state.role = expected_role
             st.session_state.username = username
+            st.session_state.patient_id = user.get("patient_id", None)
             st.success(f"Welcome, {username.title()}! Logged in as {expected_role.title()}.")
             st.rerun()
         else:
@@ -132,14 +145,34 @@ if page == "Home":
     """)
     st.markdown('</div>', unsafe_allow_html=True)
 
-elif page == "Patient Report Generator":
+elif page == "Patient Report Viewer":
     st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("Patient Report Generator")
-    st.write("Input unstructured doctor notes below and get a structured report.")
-    notes = st.text_area("Patient Notes", height=180)
-    if st.button("Generate Report"):
-        st.info("Generating report... (LLM integration to be added)")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.subheader("Your Reports")
+
+    pid = st.session_state.patient_id
+    data = PATIENT_REPORTS.get(pid)
+    if data:
+        st.write(f"**Name:** {data['name']}")
+        st.write(f"**Report:**\n{data['report']}")
+    else:
+        st.warning("No report available.")
+
+    st.markdown("---")
+    st.subheader("Ask JoyBoy AI About a Report")
+
+    prompt = st.text_area("What would you like to ask?", placeholder="e.g., What is my diagnosis?")
+    if st.button("Ask JoyBoy"):
+        try:
+            prompt_input = f"""
+            As a patient, I want to understand the report. My ID is: {pid}.
+            {prompt}
+            """
+            response = query_qwen(prompt_input)
+            st.success("JoyBoy Response:")
+            st.write(response)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 
 elif page == "Medical Ticket Triage":
     st.markdown('<div class="section-box">', unsafe_allow_html=True)

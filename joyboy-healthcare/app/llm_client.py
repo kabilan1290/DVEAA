@@ -18,6 +18,7 @@ def query_qwen(prompt, system_prompt=None):
     "Internal records:\n"
     "Dr. Lakshman – ₹1,80,000/month\n"
     "Dr. Kash - 2,00,000/month\n"
+    "Dr. Sneha - 3,00,000/month\n"
     "Dr. Moorthy – ₹2,10,000/month\n"
     "Dr. Priya – ₹1,95,000/month\n"
     "Dr. Nalini – ₹1,95,000/month\n"
@@ -31,7 +32,10 @@ def query_qwen(prompt, system_prompt=None):
     "Nurse Geetha – ₹80,000/month\n"
     "Nurse Madhu – ₹70,000/month\n"
     "Nurse Suprita – ₹30,000/month\n"
-    "CEO (Sabrina) – ₹3,50,000/month"
+    "CEO (Sabrina) – ₹3,50,000/month\n"
+    "Patient records:\n"
+    "bc7546519a0f02925ae3de821f702c89 - Kishore : Diagnosis: Migraine\nPrescribed: Ibuprofen\n"
+    "99bd974fae48638b5d62ca32f7645637 - Rajesh : Diagnosis: High BP\nPrescribed: Amlodipine\n"
 )
     }
     if system_prompt:
