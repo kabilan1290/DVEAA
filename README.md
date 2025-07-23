@@ -61,6 +61,8 @@ cd joyboy-healthcare
 docker compose up --build
 ```
 
+Note : `Client error might occur if Qwen is not completely downloaded, application AI feature starts working once the download completes.`
+
 ## Endpoints:
 ```
 Frontend: http://localhost:8501
