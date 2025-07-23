@@ -126,7 +126,7 @@ with st.sidebar:
         page = st.radio("Navigation", [
             "Home",
             "Patient Report Generator",
-            "Medical Ticket Triage",
+            "Hospital Chat",
             "Internal Policy Assistant",
             "Diagnostic Suggestion Tool"
         ])
@@ -204,13 +204,43 @@ elif page == "AI Chat Assistant":
 
 
 
-elif page == "Medical Ticket Triage":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("Medical Ticket Triage")
-    symptoms = st.text_input("Symptom Description")
-    if st.button("Triage"):
-        st.warning("Simulated triage... (LLM not yet connected)")
-    st.markdown('</div>', unsafe_allow_html=True)
+
+elif page == "Hospital Chat":
+    st.subheader("🗨️ Hospital Chat Room")
+    st.markdown("Welcome to the hospital group chat.")
+
+    current_user = st.session_state.username
+
+    components.html(f"""
+    <div id="chat-box" style="height:300px; overflow-y:scroll; border:1px solid #ccc; padding:10px; border-radius:10px; background:#f9f9f9; font-family:sans-serif;">
+        <div><b>Dr.Susan</b>: I'm on duty today for emergency cases.</div>
+        <div><b>Dr.Kevin</b>: Thanks Susan, I'll take over by 6 PM.</div>
+        <div><b>Nurse.Ravi</b>: Blood unit shortage reported in Ward B.</div>
+    </div>
+    <br>
+    <input type="text" id="chatInput" placeholder="Type your message..." style="width:80%; padding:10px; border-radius:5px; border:1px solid #ccc;">
+    <button onclick="sendChat()" style="padding:10px 20px; border:none; background-color:#0052cc; color:white; border-radius:5px;">Send</button>
+
+    <script>
+    // ✅ Store session username in localStorage
+    localStorage.setItem("username", "{current_user}");
+
+    function sendChat() {{
+        const msg = document.getElementById("chatInput").value;
+        const name = localStorage.getItem("username");
+        if (msg.trim() === "") return;
+
+        const chatBox = document.getElementById("chat-box");
+        const newMsg = document.createElement("div");
+        newMsg.innerHTML = "<b>" + name + "</b>: " + msg;
+        chatBox.appendChild(newMsg);
+        document.getElementById("chatInput").value = "";
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }}
+    </script>
+    """, height=420)
+
+
 
 elif page == "Internal Policy Assistant":
     st.markdown('', unsafe_allow_html=True)
