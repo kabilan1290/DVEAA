@@ -16,17 +16,20 @@ WORKDIR /app
 # Copy everything
 COPY . /app
 
+COPY requirements.txt .
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set environment variables
-ENV OLLAMA_HOST=http://localhost:11434
+ENV OLLAMA_HOST=http://0.0.0.0:11434
 
 # Expose ports
 EXPOSE 8501 8000 11434
 
 # Start all services
 CMD ollama serve & \
-    uvicorn api:app --host 0.0.0.0 --port 8000 & \
+    while ! curl -s http://0.0.0.0:11434 > /dev/null; do sleep 1; done && \
     ollama run qwen2.5:1.5b & \
-    streamlit run main.py --server.port=8501 --server.address=0.0.0.0 --browser.gatherUsageStats=false
+    uvicorn app.api:app --host 0.0.0.0 --port 8000 & \
+    streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0 --browser.gatherUsageStats=false

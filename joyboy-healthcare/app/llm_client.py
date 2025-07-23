@@ -2,7 +2,7 @@
 
 import requests
 
-OLLAMA_ENDPOINT = "http://localhost:11434/api/generate"  # Use service name, not localhost
+OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/generate"  
 
 def query_qwen(prompt, system_prompt=None):
     payload = {

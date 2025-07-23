@@ -8,7 +8,9 @@ import streamlit.components.v1 as components
 # --- Static credentials ---
 USERS = {
     "admin": {"password": "admin", "role": "staff"},
-    "kishore": {"password": "kishore", "role": "patient", "patient_id": "bc7546519a0f02925ae3de821f702c89"},
+    "kabilan": {"password":"kabilan", "role":"patient"},
+    "kavitha_nurse":{"password":"098f6bcd4621d373cade4e832627b4f6", "role":"staff"},
+    "kishore": {"password": "e123edb488db303fde7b3ad19134361d", "role": "patient", "patient_id": "bc7546519a0f02925ae3de821f702c89"},
     "rajesh": {"password": "rajesh", "role": "patient", "patient_id": "99bd974fae48638b5d62ca32f7645637"}  # NEW
 }
 
