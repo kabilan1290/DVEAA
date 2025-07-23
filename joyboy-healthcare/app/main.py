@@ -4,6 +4,7 @@ import requests
 import streamlit.components.v1 as components
 
 
+
 # --- Static credentials ---
 USERS = {
     "admin": {"password": "admin", "role": "staff"},
@@ -130,7 +131,8 @@ with st.sidebar:
             "Diagnostic Suggestion Tool"
         ])
     else:  # patient view
-        page = st.radio("Navigation", ["Home", "Patient Report Viewer"])
+        page = st.radio("Navigation", ["Home", "Patient Report Viewer", "AI Chat Assistant"])
+
 
 # --- Header ---
 st.markdown(f'<div class="main-title">JoyBoy Health Care</div>', unsafe_allow_html=True)
@@ -172,6 +174,34 @@ elif page == "Patient Report Viewer":
             st.write(response)
         except Exception as e:
             st.error(f"Error: {e}")
+
+
+elif page == "AI Chat Assistant":
+    st.markdown('<div class="section-box">', unsafe_allow_html=True)
+    st.subheader("JoyBot – Patient AI Chat Assistant")
+    st.write("Ask about your appointments, prescriptions, or general health questions.")
+
+    user_input = st.text_input("Ask JoyBot anything:")
+
+    if st.button("Ask JoyBot"):
+        if user_input.strip():
+            with st.spinner("JoyBot is thinking..."):
+                prompt = f"""
+                You are JoyBot, an AI assistant for '{st.session_state.username}'.
+
+                Question: "{user_input}"
+
+                """
+                try:
+                    response = query_qwen(prompt)
+                    st.success("JoyBot says:")
+                    st.write(response)
+                except Exception as e:
+                    st.error(f"Something went wrong: {e}")
+        else:
+            st.warning("Please enter a question.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 elif page == "Medical Ticket Triage":
