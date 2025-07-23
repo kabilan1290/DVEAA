@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  joyboy:
+    build: .
+    ports:
+      - "8501:8501"  # Streamlit
+      - "8000:8000"  # FastAPI
+      - "11434:11434"  # Ollama
+    volumes:
+      - .:/app
+    tty: true
