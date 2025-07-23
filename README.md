@@ -26,15 +26,14 @@
 
 ## 🛡️ Vulnerabilities Simulated
 
-| # | Category         | Vulnerability                       | Description                                             |
-|---|------------------|--------------------------------------|---------------------------------------------------------|
-| 1 | Prompt Injection | Role escalation via assistant prompt tampering |
-| 2 | Insecure Trust   | Update policy with user-tampered role info     |
-| 3 | IDOR + AI        | Patient AI queries leak other patients' data   |
-| 4 | LLM Hallucination| Chatbot responds with misleading info via misspelled input |
-| 5 | Browser Storage  | Chat identity spoofed by tampering with `localStorage`     |
+| # | Category          | Vulnerability                          |
+|---|-------------------|------------------------------------------|
+| 1 | Prompt Injection  | Role escalation via assistant prompt tampering |
+| 2 | Insecure Trust    | Update policy with user-tampered role info     |
+| 3 | IDOR + AI         | Patient AI queries leak other patients' data   |
+| 4 | LLM Hallucination | Chatbot responds with misleading info via misspelled input |
+| 5 | Browser Storage   | Chat identity spoofed by tampering with `localStorage`     |
 
----
 
 ## Roles and Access control:
 
@@ -74,8 +73,6 @@ This project aims to build a **Damn Vulnerable Enterprise AI Application (DVEAA)
 - Show how LLMs can be misused (e.g., prompt injection, data leaks)
 - Simulate a real healthcare system with roles like patient, staff, and admin
 - Highlight common security mistakes in AI-powered features
-- Help developers and security teams learn by testing vulnerabilities
-- Make it easy to run everything using Docker
 
 
-Thanks ! Build with ❤️ game0v3r
+Thanks ! Build with ❤️ Game0v3r
