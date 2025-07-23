@@ -7,6 +7,10 @@
 
 ---
 
+## Vulnerability Report:
+
+- [DVEAA Vulnerability report](https://docs.google.com/document/d/12JlPwUiJNj4eCiscvumwtN1mJaVfnmclw-Lj8G63o98/edit?usp=sharing)
+
 ## Key Features
 
 ### Staff Portal
