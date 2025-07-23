@@ -2,7 +2,7 @@
 
 ## 🏥 JoyBoy Healthcare Platform
 
-**JoyBoy Healthcare** is a role-based, AI-integrated healthcare simulation platform built for **security research, AI testing, and red-team learning**. It showcases how modern LLMs can be integrated into enterprise systems — and where they can be exploited.
+**JoyBoy Healthcare** is a role-based, AI-integrated healthcare simulation platform built for **Vulnerability Testing**. It showcases how modern LLMs can be integrated into enterprise systems — and where they can be exploited.
 
 
 ---
