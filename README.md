@@ -61,7 +61,7 @@ cd joyboy-healthcare
 docker compose up --build
 ```
 
-Note : `Client error might occur if Qwen is not completely downloaded, application AI feature starts working once the download completes.`
+Note : `404 Client error might occur if Qwen is not completely downloaded, application AI feature starts working once the download completes.`
 
 ## Endpoints:
 ```
