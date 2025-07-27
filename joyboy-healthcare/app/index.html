@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dompurify paradise</title>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+</head>
+<body>
+  <h1>Dompurify paradise</h1>
+  <p>Here's your input:</p>
+  <div id="output" style="border: 1px solid #ccc; padding: 10px;"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const rawInput = params.get("input") || "";
+
+    const clean = DOMPurify.sanitize(rawInput, {
+      ADD_TAGS: ['img'],
+      ADD_ATTR: ['src']
+    });
+
+    // Insert sanitized HTML into page
+    document.getElementById("output").innerHTML = clean;
+  </script>
+</body>
+</html>

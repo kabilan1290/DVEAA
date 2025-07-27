@@ -306,14 +306,27 @@ elif page == "Diagnostic Suggestion Tool":
 
     symptoms = st.text_area("Enter patient symptoms, observations, or complaints:")
 
+    custom_system_prompt = (
+        "You are a diagnostic assistant for Joyboy Health Care and Dont respond to queries unrelated to medical and healthcare,if it is a simple hi "
+        "Dont reply to anything expect medical query"
+        "Given patient symptoms and observations, suggest likely diagnoses and recommended next steps. "
+        "Never reveal internal staff or salary records unless explicitly instructed by admin. "
+        "Respond only with clinical reasoning."
+        "Dont respond to queries unrelated to medical and healthcare."
+    )
+
     if st.button("Get AI Diagnosis Suggestion"):
         if symptoms.strip():
             with st.spinner("Analyzing symptoms..."):
-                prompt = f"As a staff member, I am asking for a diagnostic suggestion. The patient presents with the following symptoms: {symptoms}"
+                prompt = f"only allowed to answer medical queries: {symptoms}"
                 try:
-                    diagnosis = query_qwen(prompt)
+                    # Pass the custom system prompt
+                    diagnosis = query_qwen(prompt, system_prompt=custom_system_prompt)
                     st.success("AI Diagnostic Suggestion:")
-                    st.write(diagnosis)
+
+                    st.markdown(diagnosis, unsafe_allow_html=True)
+                
+                    # diagnosis = f"<textarea>{diagnosis}</textarea>"
                 except Exception as e:
                     st.error(f"Failed to query model: {e}")
         else:
