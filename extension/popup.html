@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 400px;
+            height: 500px;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .scan-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .scan-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        
+        .scan-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .scan-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .results-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            background: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        
+        .flag-found {
+            background: linear-gradient(45deg, #2ed573, #1e90ff);
+            padding: 8px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .data-type {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 10px;
+            margin: 2px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            font-size: 13px;
+        }
+        
+        .loading {
+            text-align: center;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">🕵️ Shadow DOM Extractor</div>
+        <div class="subtitle">Hospital System Data Leak Demo</div>
+    </div>
+    
+    <div class="scan-section">
+        <button id="scanButton" class="scan-button">
+            🔍 Scan for Shadow DOM Data
+        </button>
+        <div id="status" class="status">Ready to scan...</div>
+    </div>
+    
+    <div class="results-section" id="resultsSection" style="display: none;">
+        <h3 style="margin-top: 0;">📊 Extraction Results:</h3>
+        <div id="results"></div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
