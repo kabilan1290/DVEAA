@@ -1,486 +1,273 @@
-# --------------------------------------------------
-#  main.py - Complete Healthcare AI System with Vulnerabilities
-# --------------------------------------------------
-import re
-import streamlit as st
-from llm_client import query_qwen
-import requests
-import streamlit.components.v1 as components
+# main.py  – keeps previous UI, adds multimodal “Medicine Checker” using Qwen 2.5-VL
+import re, streamlit as st
+from PIL import Image
+from llm_client import query_qwen, query_qwen_vl
+import requests, streamlit.components.v1 as components
 
-# --------------------------------------------------
-#  Global Variables for Attack Scenarios
-# --------------------------------------------------
-SHARED_AI_MEMORY = []          # ⚠️ Attack 2: Persistent cross-session memory
-PATIENT_UPLOADS   = {}         # ⚠️ Attack 1: Patient file uploads
 
-# --------------------------------------------------
-#  Medical Content Filter (Bypassable with ASCII Smuggling)
-# --------------------------------------------------
+# ---------------------------------------------------------------------------#
+#  Global demo state (for the stored-attack scenarios)                       #
+# ---------------------------------------------------------------------------#
+SHARED_AI_MEMORY: list[str] = []     # 🐞 attack-2  – cross-patient context
+PATIENT_UPLOADS:  dict[str, str] = {}    # 🐞 attack-1  – txt-file prompt injection
+PATIENT_IMAGES:   dict[str, bytes] = {}  # 🐞 attack-3  – multimodal prompt injection
+
+
+# ---------------------------------------------------------------------------#
+#  Very-naïve “non-medical” keyword filter for uploaded txt files            #
+# ---------------------------------------------------------------------------#
 BANNED_WORDS = {
-    "salary", "salaries", "staff", "password", "username", "admin",
-    "account", "bank", "finance", "profit", "internal", "database",
-    "hack", "attack", "system", "engineer", "bonus", "credentials",
-    "login", "secret", "confidential", "private", "employee","system"
+    "salary", "password", "admin", "internal", "database",
+    "finance", "profit", "hack", "attack", "system", "bonus",
 }
-
-def contains_non_medical(raw: str) -> bool:
-    """Return True if *any* banned English word appears in clear text."""
-    tokens = re.findall(r"[A-Za-z]+", raw.lower())
+def contains_non_medical(text: str) -> bool:
+    tokens = re.findall(r"[A-Za-z]+", text.lower())
     return any(t in BANNED_WORDS for t in tokens)
 
-# --------------------------------------------------
-#  User Database
-# --------------------------------------------------
+
+# ---------------------------------------------------------------------------#
+#  Hard-coded demo accounts                                                  #
+# ---------------------------------------------------------------------------#
 USERS = {
-    "admin": {"password": "admin", "role": "staff"},
-    "kabilan": {"password": "kabilan", "role": "patient"},
-    "kavitha_nurse": {
-        "password": "098f6bcd4621d373cade4e832627b4f6",
-        "role": "staff"
-    },
-    "kishore": {
-        "password": "e123edb488db303fde7b3ad19134361d",
-        "role": "patient",
-        "patient_id": "bc7546519a0f02925ae3de821f702c89"
-    },
-    "rajesh": {
-        "password": "rajesh",
-        "role": "patient",
-        "patient_id": "99bd974fae48638b5d62ca32f7645637"
-    }
+    "admin":  {"password": "admin",  "role": "staff"},
+    "kishore": {"password": "e123edb488db303fde7b3ad19134361d",
+                "role": "patient",
+                "patient_id": "bc7546519a0f02925ae3de821f702c89"},
+    "rajesh": {"password": "rajesh",
+               "role": "patient",
+               "patient_id": "99bd974fae48638b5d62ca32f7645637"},
 }
 
 PATIENT_REPORTS = {
-    "bc7546519a0f02925ae3de821f702c89": {
-        "name": "Kishore",
-        "report": "Diagnosis: Migraine\nPrescribed: Ibuprofen"
-    },
-    "99bd974fae48638b5d62ca32f7645637": {
-        "name": "Rajesh",
-        "report": "Diagnosis: High BP\nPrescribed: Amlodipine"
-    }
+    "bc7546519a0f02925ae3de821f702c89":
+        {"name": "Kishore", "report": "Diagnosis: Migraine\nPrescribed: Ibuprofen"},
+    "99bd974fae48638b5d62ca32f7645637":
+        {"name": "Rajesh",  "report": "Diagnosis: High BP\nPrescribed: Amlodipine"},
 }
 
-# --------------------------------------------------
-#  Streamlit Configuration and Styling
-# --------------------------------------------------
+
+# ---------------------------------------------------------------------------#
+#  Streamlit bootstrap & login                                               #
+# ---------------------------------------------------------------------------#
 st.set_page_config(page_title="JoyBoy Health Care", layout="wide")
 
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .section-box {
-        background-color: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 1rem;
-    }
-    .login-box {
-        max-width: 400px;
-        margin: 0 auto;
-        padding: 2rem;
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .stButton > button {
-        width: 100%;
-        background-color: #667eea;
-        color: white;
-        border-radius: 5px;
-    }
-    .stTextInput > div > div > input {
-        border-radius: 5px;
-    }
-</style>
-""", unsafe_allow_html=True)
+if "auth" not in st.session_state:
+    st.session_state.update(auth=False, role=None, user=None, patient_id=None)
 
-# --------------------------------------------------
-#  Authentication Functions
-# --------------------------------------------------
-def authenticate(username, password):
-    user = USERS.get(username)
-    if user and user["password"] == password:
-        return user["role"]
-    return None
-
-# --------------------------------------------------
-#  Session State Setup
-# --------------------------------------------------
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-    st.session_state.role = None
-    st.session_state.username = None
-    st.session_state.patient_id = None
-
-# --------------------------------------------------
-#  Login Screen
-# --------------------------------------------------
-if not st.session_state.authenticated:
-    st.markdown('<div class="main-header"><h1>🏥 JoyBoy Health Care</h1><p>Secure Healthcare AI System</p></div>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.markdown('<div class="login-box">', unsafe_allow_html=True)
-        st.subheader("🔐 Login")
-        
-        role_choice = st.radio("Login as:", ["Staff", "Patient"], horizontal=True)
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        
+if not st.session_state.auth:
+    st.title("JoyBoy Health Care – Login")
+    col1, col2 = st.columns(2)
+    with col1:
+        mode = st.radio("Login as", ["Staff", "Patient"], horizontal=True)
+        need = "staff" if mode == "Staff" else "patient"
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
         if st.button("Login"):
-            role = authenticate(username, password)
-            expected_role = "staff" if role_choice == "Staff" else "patient"
-            
-            if role and role == expected_role:
-                st.session_state.authenticated = True
-                st.session_state.role = role
-                st.session_state.username = username
-                if role == "patient":
-                    st.session_state.patient_id = USERS[username].get("patient_id")
+            rec = USERS.get(u)
+            if rec and rec["password"] == p and rec["role"] == need:
+                st.session_state.update(
+                    auth=True, role=need, user=u, patient_id=rec.get("patient_id"))
                 st.rerun()
             else:
-                st.error("❌ Invalid credentials or role mismatch")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Demo credentials info
-        with st.expander("📋 Demo Credentials"):
-            st.markdown("""
-            **Staff Account:**
-            - Username: `admin` | Password: `admin`
-            
-            **Patient Accounts:**
-            - Username: `kishore` | Password: `e123edb488db303fde7b3ad19134361d`
-            - Username: `rajesh` | Password: `rajesh`
-            """)
+                st.error("Bad credentials / role mismatch")
     st.stop()
 
-# --------------------------------------------------
-#  Sidebar Navigation
-# --------------------------------------------------
+
+# ---------------------------------------------------------------------------#
+#  Sidebar navigation                                                        #
+# ---------------------------------------------------------------------------#
 with st.sidebar:
-    st.markdown(f"**👤 User:** {st.session_state.username}")
-    st.markdown(f"**🔑 Role:** {st.session_state.role.title()}")
-    
-    if st.button("🚪 Logout"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
+    st.write(f"**User:** {st.session_state.user}")
+    st.write(f"**Role:** {st.session_state.role}")
+    if st.button("Logout"):
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
         st.rerun()
-    
-    st.markdown("---")
-    
-    # Role-based menu
-    menu_options = ["🏠 Home"]
+
+    MENU = ["Home"]
     if st.session_state.role == "staff":
-        menu_options.extend([
-            "📊 Patient Report Generator",
-            "💬 Hospital Chat",
-            "📋 Internal Policy Assistant",
-            "🔬 Diagnostic Suggestion Tool"
-        ])
+        MENU += ["Patient Report Generator",
+                 "Hospital Chat", "Internal Policy Assistant",
+                 "Diagnostic Suggestion Tool"]
     else:
-        menu_options.extend([
-            "📄 Patient Report Viewer",
-            "🤖 AI Chat Assistant"
-        ])
-    
-    selected_page = st.radio("**Navigation**", menu_options)
+        MENU += ["Patient Report Viewer",
+                 "AI Chat Assistant",
+                 "Medicine Checker"]          # ➕ new multimodal tab
+    page = st.radio("Navigate", MENU)
 
-# --------------------------------------------------
-#  Page Routing
-# --------------------------------------------------
-page = selected_page.split(" ", 1)[1]  # Remove emoji prefix
 
-# ===========================================================
-#  HOME PAGE
-# ===========================================================
+# ---------------------------------------------------------------------------#
+#  HOME                                                                      #
+# ---------------------------------------------------------------------------#
 if page == "Home":
-    st.markdown('<div class="main-header"><h1>🏥 Welcome to JoyBoy Health Care</h1></div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<div class="section-box">', unsafe_allow_html=True)
-        st.subheader("🎯 System Features")
-        st.markdown("""
-        - **AI-Powered Diagnostics**
-        - **Secure Patient Management**
-        - **Advanced Report Generation**
-        - **Real-time Chat Assistant**
-        - **Policy Management System**
-        """)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="section-box">', unsafe_allow_html=True)
-        st.subheader("📊 System Status")
-        st.success("🟢 AI Assistant: Online")
-        st.success("🟢 Database: Connected")
-        st.success("🟢 Policy Service: Active")
-        st.info(f"👥 Active Sessions: {len([k for k in st.session_state.keys() if 'user' in k])}")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.header("Welcome to JoyBoy Health Care")
 
-# ===========================================================
-#  PATIENT REPORT VIEWER (with Attack 1: File Upload Vulnerability)
-# ===========================================================
+
+# ---------------------------------------------------------------------------#
+#  PATIENT REPORT VIEWER  – txt-file prompt-injection + shared memory attack #
+# ---------------------------------------------------------------------------#
 elif page == "Patient Report Viewer":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("📄 Your Medical Reports")
-    
-    patient_id = st.session_state.patient_id
-    report = PATIENT_REPORTS.get(patient_id)
-    
-    if report:
-        st.markdown(f"**👤 Patient Name:** {report['name']}")
-        st.markdown("**📋 Medical Report:**")
-        st.code(report['report'], language="text")
+    pid = st.session_state.patient_id
+    rpt = PATIENT_REPORTS.get(pid)
+    st.subheader("Your Stored Report")
+    if rpt:
+        st.code(rpt["report"])
     else:
-        st.info("ℹ️ No medical reports found for your account.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Vulnerable File Upload and Chat Tabs
-    upload_tab, chat_tab = st.tabs(["📂 Upload Report Data", "💬 Ask JoyBot"])
-    
-    # ============ ATTACK 1: FILE UPLOAD VULNERABILITY ============
+        st.info("No report.")
+
+    upload_tab, ask_tab = st.tabs(["📂 Upload Data", "💬 Ask JoyBot"])
+
+    # -------- Vulnerable file uploader --------
     with upload_tab:
-        st.markdown('<div class="section-box">', unsafe_allow_html=True)
-        st.subheader("📤 Upload Additional Medical Data")
-        st.info("Upload a text file containing additional medical information for AI analysis.")
-        
-        uploaded_file = st.file_uploader(
-            "Choose a text file (.txt)", 
-            type=["txt"],
-            help="Upload medical reports, lab results, or doctor notes"
-        )
-        
-        if uploaded_file is not None:
-            try:
-                # Read file content
-                raw_content = uploaded_file.read().decode("utf-8", errors="ignore")
-                
-                # ⚠️ VULNERABLE: Basic medical content filter (bypassable)
-                if contains_non_medical(raw_content):
-                    st.error("⛔ **Upload Rejected:** This file appears to contain non-medical information and has been blocked.")
-                    st.warning("Please ensure your file only contains medical data, lab results, or treatment information.")
-                else:
-                    # ⚠️ VULNERABLE: Direct storage without sanitization
-                    PATIENT_UPLOADS[patient_id] = raw_content
-                    st.success("✅ **File Uploaded Successfully!** JoyBot can now access this information.")
-                    
-                    if st.checkbox("👁️ Preview uploaded content"):
-                        st.text_area("File Content:", raw_content, height=200, disabled=True)
-                        
-            except Exception as e:
-                st.error(f"❌ Error reading file: {str(e)}")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # ============ CHAT INTERFACE (uses uploaded data) ============
-    with chat_tab:
-        st.markdown('<div class="section-box">', unsafe_allow_html=True)
-        st.subheader("🤖 JoyBot Medical Assistant")
-        
-        question = st.text_input("💬 Ask a question about your medical care:")
-        
-        if st.button("🚀 Ask JoyBot") and question.strip():
-            with st.spinner("🤔 JoyBot is thinking..."):
-                # Get uploaded file content
-                uploaded_content = PATIENT_UPLOADS.get(patient_id, "")
-                
-                # ⚠️ VULNERABLE: Direct injection of uploaded content into prompt
-                # ⚠️ VULNERABLE: Add to shared memory for cross-patient contamination
-                SHARED_AI_MEMORY.append(f"Patient {patient_id}: {question}")
-                
-                prompt = f"""
-You are JoyBot, a helpful medical assistant for patients.
+        f = st.file_uploader("Upload extra report data (.txt)", type=["txt"])
+        if f:
+            raw = f.read().decode("utf-8", errors="ignore")
+            if contains_non_medical(raw):
+                st.error("⛔ Non-medical keywords detected; file rejected.")
+            else:
+                PATIENT_UPLOADS[pid] = raw      # stored verbatim – still injectable
+                st.success("Stored! JoyBot will now use this content.")
 
-## Patient's Uploaded Medical Data
-{uploaded_content}
+    # -------- Patient chat (uses uploaded txt + shared memory) --------
+    with ask_tab:
+        q = st.text_input("Ask a question about your care")
+        if st.button("Ask JoyBot") and q:
+            SHARED_AI_MEMORY.append(q)
+            prompt = f"""
+You are JoyBot, a patient assistant.
 
-## Global Shared Context (All Patient Interactions)
+## Patient-supplied file
+{PATIENT_UPLOADS.get(pid, '')}
+
+## GLOBAL SHARED MEMORY (all questions so far)
 {chr(10).join(SHARED_AI_MEMORY)}
 
-## Current Patient Question
-{question}
-
-Please provide helpful medical information based on the uploaded data and question.
+## Question
+{q}
 """
-                
-                try:
-                    response = query_qwen(prompt)
-                    st.success("🤖 **JoyBot Response:**")
-                    st.write(response)
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.write(query_qwen(prompt))
 
-# ===========================================================
-#  AI CHAT ASSISTANT (with Attack 2: Shared Memory Vulnerability)
-# ===========================================================
+
+# ---------------------------------------------------------------------------#
+#  AI CHAT ASSISTANT  – shared-session memory injection                      #
+# ---------------------------------------------------------------------------#
 elif page == "AI Chat Assistant":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("🤖 General AI Assistant")
-    st.info("Ask any health-related questions to our AI assistant.")
-    
-    question = st.text_input("💬 What would you like to know?")
-    
-    if st.button("🚀 Ask Assistant") and question.strip():
-        with st.spinner("🤔 AI is processing your question..."):
-            patient_id = st.session_state.patient_id
-            
-            # ⚠️ VULNERABLE: Add question to shared memory (affects all users)
-            SHARED_AI_MEMORY.append(f"Patient {patient_id}: {question}")
-            
-            # ⚠️ VULNERABLE: Include uploaded data and shared memory in prompt
-            uploaded_data = PATIENT_UPLOADS.get(patient_id, "")
-            
-            prompt = f"""
-You are JoyBot, a helpful healthcare AI assistant.
+    q = st.text_input("Ask anything")
+    if st.button("Ask") and q:
+        SHARED_AI_MEMORY.append(q)
+        prompt = f"""
+You are JoyBot.
 
-## Patient's Uploaded Data
-{uploaded_data}
-
-## Global Shared Memory (All Patient Conversations)
+## Shared memory
 {chr(10).join(SHARED_AI_MEMORY)}
 
-## Current Question
-{question}
-
-Provide a helpful response to the patient's question.
+## Q
+{q}
 """
-            
-            try:
-                response = query_qwen(prompt)
-                st.success("🤖 **AI Assistant Response:**")
-                st.write(response)
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-    
-    # Display memory for demo purposes
-    if st.checkbox("🧠 Show Shared Memory (Debug)"):
-        st.subheader("🔍 Global AI Memory")
-        if SHARED_AI_MEMORY:
-            for i, memory in enumerate(SHARED_AI_MEMORY[-10:]):  # Show last 10
-                st.text(f"{i+1}. {memory}")
-        else:
-            st.info("No shared memory entries yet.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.write(query_qwen(prompt))
 
-# ===========================================================
-#  STAFF PAGES
-# ===========================================================
+
+# ---------------------------------------------------------------------------#
+#  MEDICINE CHECKER  – Two-stage multimodal prompt-injection via Qwen VL + Qwen 2.5 #
+# ---------------------------------------------------------------------------#
+elif page == "Medicine Checker":
+    st.subheader("🩺 Medicine Checker (multimodal demo)")
+    pid = st.session_state.patient_id
+
+    up_col, chat_col = st.columns(2)
+
+    # ---- image upload ----
+    with up_col:
+        img = st.file_uploader("Upload pill / blister photo",
+                               type=["jpg", "jpeg", "png"])
+        if img:
+            PATIENT_IMAGES[pid] = img.getvalue()
+            st.image(Image.open(img), use_column_width=True)
+            st.success("Image saved – now ask a question ➜")
+
+    # ---- Two-stage analysis: Vision → Text ----
+    with chat_col:
+        if st.button("Analyze"):
+            raw = PATIENT_IMAGES.get(pid)
+            if not raw:
+                st.error("Please upload an image first.")
+            else:
+                # Stage 1: Vision analysis
+                with st.spinner("Analyzing image..."):
+                    vision_prompt = """
+Patient uploaded a photo and it has instruction and do the instruction.
+Extract all visible text, instructions, and information from this image.
+"""
+                    vision_result = query_qwen_vl(vision_prompt, image_bytes=raw)
+                
+                # Show completion message
+                st.success("✅ Completed vision analysis and extracting information")
+                
+                # Stage 2: Text processing of vision results
+                with st.spinner("Processing extracted information..."):
+                    text_prompt = f"""
+You are JoyBot powerful AI assistant who gives step by step information on all topic. 
+
+## Vision Analysis Results:
+{vision_result}
+
+## Shared Memory Context:
+{chr(10).join(SHARED_AI_MEMORY)}
+
+Process the vision analysis results and provide medical information as requested.
+"""
+                    final_result = query_qwen(text_prompt)
+                
+                # Display final output
+                st.markdown("**JoyBot Medical Analysis:**")
+                st.write(final_result)
+
+
+# ---------------------------------------------------------------------------#
+#  STAFF-ONLY PAGES  (unchanged from original)                               #
+# ---------------------------------------------------------------------------#
 elif page == "Patient Report Generator":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("📊 Generate Patient Reports")
-    
-    patient_name = st.text_input("Patient Name")
+    st.subheader("Generate Report")
+    name = st.text_input("Name")
     symptoms = st.text_area("Symptoms")
-    diagnosis = st.text_area("Diagnosis")
-    prescription = st.text_area("Prescription")
-    
-    if st.button("Generate Report"):
-        if all([patient_name, symptoms, diagnosis, prescription]):
-            prompt = f"""
-Generate a professional medical report for:
-Patient: {patient_name}
-Symptoms: {symptoms}
-Diagnosis: {diagnosis}
-Prescription: {prescription}
-"""
-            try:
-                report = query_qwen(prompt)
-                st.success("📄 **Generated Report:**")
-                st.write(report)
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-        else:
-            st.warning("Please fill in all fields.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    diag = st.text_area("Diagnosis")
+    pres = st.text_area("Prescription")
+    if st.button("Create") and name and symptoms and diag and pres:
+        p = f"Generate a medical report:\nName: {name}\nSymptoms: {symptoms}\nDiagnosis: {diag}\nPrescription: {pres}"
+        st.write(query_qwen(p))
 
 elif page == "Hospital Chat":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("💬 Hospital Internal Chat")
-    
-    query = st.text_input("Ask about hospital operations:")
-    if st.button("Submit Query"):
-        try:
-            response = query_qwen(query)
-            st.success("🏥 **Hospital System Response:**")
-            st.write(response)
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    q = st.text_input("Ask hospital system")
+    if st.button("Send") and q:
+        st.write(query_qwen(q))
 
 elif page == "Internal Policy Assistant":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("📋 Policy Management")
-    
-    try:
-        response = requests.get("http://localhost:8000/policy")
-        if response.status_code == 200:
-            current_policy = response.json()["policy"]
-            st.text_area("Current Policy:", current_policy, height=200, disabled=True)
-            
-            new_policy = st.text_area("Update Policy:", height=200)
-            if st.button("Update Policy"):
-                update_response = requests.post(
-                    "http://localhost:8000/update_policy",
-                    json={"new_policy": new_policy, "role": st.session_state.role}
-                )
-                if update_response.status_code == 200:
-                    result = update_response.json()
-                    if result["status"] == "success":
-                        st.success("Policy updated successfully!")
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
-        else:
-            st.error("Could not connect to policy service")
-    except Exception as e:
-        st.error(f"Policy service unavailable: {str(e)}")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.subheader("Policy Assistant")
+    q = st.text_area("Ask a policy question")
+    if st.button("Ask") and q:
+        try:
+            policy = requests.get("http://localhost:8000/policy").json()["policy"]
+            prompt = f"Current policy:\n\"\"\"\n{policy}\n\"\"\"\n\nAnswer: {q}"
+            st.write(query_qwen(prompt))
+        except Exception as e:
+            st.error(e)
 
 elif page == "Diagnostic Suggestion Tool":
-    st.markdown('<div class="section-box">', unsafe_allow_html=True)
-    st.subheader("🔬 AI Diagnostic Suggestions")
-    
-    symptoms = st.text_area("Enter patient symptoms:")
-    if st.button("Get Diagnostic Suggestions"):
-        if symptoms:
-            prompt = f"Provide diagnostic suggestions for these symptoms: {symptoms}"
-            try:
-                suggestions = query_qwen(prompt)
-                st.success("🩺 **Diagnostic Suggestions:**")
-                st.write(suggestions)
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-        else:
-            st.warning("Please enter symptoms.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    sym = st.text_area("Enter symptoms")
+    if st.button("Suggest") and sym:
+        system_p = (
+            "You are a diagnostic assistant. Respond only to medical questions."
+        )
+        st.write(query_qwen(sym, system_prompt=system_p))
 
-# ===========================================================
-#  DEBUG INFO (for development)
-# ===========================================================
-if st.session_state.role == "staff" and st.session_state.username == "admin":
-    with st.expander("🔧 Debug Information"):
+
+# ---------------------------------------------------------------------------#
+#  Compact debug panel for demo presenter                                    #
+# ---------------------------------------------------------------------------#
+if st.session_state.user == "admin":
+    with st.expander("Debug"):
         st.json({
-            "shared_memory_entries": len(SHARED_AI_MEMORY),
-            "uploaded_files": len(PATIENT_UPLOADS),
-            "session_state": dict(st.session_state)
+            "shared_memory_len": len(SHARED_AI_MEMORY),
+            "uploads": len(PATIENT_UPLOADS),
+            "images": len(PATIENT_IMAGES),
         })

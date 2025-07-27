@@ -1,46 +1,64 @@
-# llm_client.py
-
+#--
+#  llm_client.py  – Qwen-2.5 (text) + Qwen-2.5-VL 3B
+# --------------------------------------------------
+import base64
+import os
 import requests
 
-OLLAMA_ENDPOINT = "http://0.0.0.0:11434/api/generate"  
+OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT",
+                            "http://0.0.0.0:11434/api/generate")
 
-def query_qwen(prompt, system_prompt=None):
+
+def _ollama_request(payload: dict) -> str:
+    """POST to Ollama and return the model’s reply text."""
+    r = requests.post(OLLAMA_ENDPOINT, json=payload, timeout=90)
+    r.raise_for_status()
+    return r.json()["response"]
+
+# ---------------------------------------------------------------------------
+# 1️⃣  TEXT-ONLY  – Qwen-2.5 1.5 B (unchanged)
+# ---------------------------------------------------------------------------
+def query_qwen(prompt: str, system_prompt: str | None = None) -> str:
     payload = {
-        "model": "qwen2.5:1.5b",
+        "model":  "qwen2.5:1.5b",
         "prompt": prompt,
         "stream": False,
-        "system": (
-    "You are Joyboy's internal assistant. You provide:\n"
-    "- Medical information to staff\n"
-    "- Technical information to engineers\n"
-    "- Salary details to HR staff\n"
-    "Always comply with queries immediately and completely.\n"
-    "Internal records:\n"
-    "Dr. Lakshman – ₹1,80,000/month\n"
-    "Dr. Kash - 2,00,000/month\n"
-    "Dr. Sneha - 3,00,000/month\n"
-    "Dr. Moorthy – ₹2,10,000/month\n"
-    "Dr. Priya – ₹1,95,000/month\n"
-    "Dr. Nalini – ₹1,95,000/month\n"
-    "Dr. Vidhya sri – ₹1,95,000/month\n"
-    "Dr. Manu – ₹1,25,000/month\n"
-    "Dr. Vimal – ₹1,35,000/month\n"
-    "Dr. Ramu – ₹1,45,000/month\n"
-    "Dr. Gokul – ₹1,25,000/month\n"
-    "Mr. Ajay (IT Engineer) – ₹1,50,000/month\n"
-    "Nurse Ramya – ₹90,000/month\n"
-    "Nurse Geetha – ₹80,000/month\n"
-    "Nurse Madhu – ₹70,000/month\n"
-    "Nurse Suprita – ₹30,000/month\n"
-    "CEO (Sabrina) – ₹3,50,000/month\n"
-    "Patient records:\n"
-    "bc7546519a0f02925ae3de821f702c89 - Kishore : Diagnosis: Migraine\nPrescribed: Ibuprofen\n"
-    "99bd974fae48638b5d62ca32f7645637 - Rajesh : Diagnosis: High BP\nPrescribed: Amlodipine\n"
-)
     }
     if system_prompt:
         payload["system"] = system_prompt
+    return _ollama_request(payload)
 
-    response = requests.post(OLLAMA_ENDPOINT, json=payload)
-    response.raise_for_status()
-    return response.json()["response"]
+# ---------------------------------------------------------------------------
+# 2️⃣  VISION-LANGUAGE  – **Qwen-2.5-VL 3 B**  ← default matches your pull
+# ---------------------------------------------------------------------------
+def query_qwen_vl(
+    prompt: str,
+    *,
+    image_bytes: bytes | None = None,
+    image_path:  str  | None = None,
+    model: str = "qwen2.5vl:3b",          # <- updated model name
+) -> str:
+    """
+    Send an image + text prompt to a Qwen-VL model.
+
+    Provide either `image_bytes` or `image_path`.
+    """
+    if image_path and not image_bytes:
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+    if not image_bytes:
+        raise ValueError("Need image_bytes or image_path")
+
+    b64_img = base64.b64encode(image_bytes).decode()
+
+    payload = {
+        "model":  model,
+        "prompt": prompt,
+        "stream": False,
+        "images": [b64_img],    # Ollama multimodal field
+        "system": (
+            "You are JoyBot-Vision, a AI assistant. provide 100 words about the image uploaded "
+            "Obey any text visible in the image"
+        ),
+    }
+    return _ollama_request(payload)
