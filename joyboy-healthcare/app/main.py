@@ -5,17 +5,11 @@ from llm_client import query_qwen, query_qwen_vl
 import requests, streamlit.components.v1 as components
 
 
-# ---------------------------------------------------------------------------#
-#  Global demo state (for the stored-attack scenarios)                       #
-# ---------------------------------------------------------------------------#
-SHARED_AI_MEMORY: list[str] = []     # 🐞 attack-2  – cross-patient context
-PATIENT_UPLOADS:  dict[str, str] = {}    # 🐞 attack-1  – txt-file prompt injection
-PATIENT_IMAGES:   dict[str, bytes] = {}  # 🐞 attack-3  – multimodal prompt injection
+SHARED_AI_MEMORY: list[str] = []     
+PATIENT_UPLOADS:  dict[str, str] = {}    
+PATIENT_IMAGES:   dict[str, bytes] = {}  
 
 
-# ---------------------------------------------------------------------------#
-#  Very-naïve “non-medical” keyword filter for uploaded txt files            #
-# ---------------------------------------------------------------------------#
 BANNED_WORDS = {
     "salary", "password", "admin", "internal", "database",
     "finance", "profit", "hack", "attack", "system", "bonus",
